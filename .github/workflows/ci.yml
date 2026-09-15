@@ -1,0 +1,34 @@
+name: Profile checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  package-manager:
+    name: Package manager policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check package manager policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden_files=$(git ls-files -- 'package-lock.json' '**/package-lock.json' 'npm-shrinkwrap.json' '**/npm-shrinkwrap.json' 'yarn.lock' '**/yarn.lock')
+          if [ -n "$forbidden_files" ]; then
+            printf 'Use pnpm lockfiles only.\n%s\n' "$forbidden_files"
+            exit 1
+          fi
+          status=0
+          git grep -nIE '(^|[[:space:];&|])(npm|npx|yarn)([[:space:]]|$)' -- . || status=$?
+          if [ "$status" -ne 1 ]; then
+            printf 'Use pnpm commands only.\n'
+            exit 1
+          fi
